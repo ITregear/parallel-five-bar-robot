@@ -1,5 +1,6 @@
 import serial
 import numpy as np
+import keyboard
 
 
 def serial_message(angle_1, angle_2, z_en, serial_port):
@@ -13,6 +14,35 @@ def serial_message(angle_1, angle_2, z_en, serial_port):
                      + ", " + str(int(z_en)) + "> \n"
 
     serial_port.write(string_to_send.encode('UTF-8'))
+
+
+def keyboard_inputs():
+    x_pos = 0
+    y_pos = 300
+    z_en = 0
+
+    if keyboard.is_pressed('a'):
+        x_pos = 100
+        y_pos = 300
+
+    if keyboard.is_pressed('s'):
+        x_pos = 0
+        y_pos = 250
+
+    if keyboard.is_pressed('d'):
+        x_pos = -100
+        y_pos = 300
+
+    if keyboard.is_pressed('w'):
+        x_pos = 0
+        y_pos = 400
+
+    if keyboard.is_pressed('h'):
+        z_en = 1
+    if keyboard.is_pressed('b'):
+        z_en = 0
+
+    return x_pos, y_pos, z_en
 
 
 def inverse_kinematics(x_pos, y_pos):
@@ -32,8 +62,8 @@ def inverse_kinematics(x_pos, y_pos):
     theta1 = np.arccos((l1a**2 + z1**2 - l1b**2) / (2 * l1a * z1))
     theta2 = np.arccos((l2a**2 + z2**2 - l2b**2) / (2 * l2a * z2))
 
-    gamma1 = np.degrees(3 * np.pi()/2 - (theta1 + alpha1))
-    gamma2 = np.degrees(3 * np.pi()/2 - (theta2 + alpha2))
+    gamma1 = np.degrees(3 * np.pi/2 - (theta1 + alpha1))
+    gamma2 = np.degrees(3 * np.pi/2 - (theta2 + alpha2))
 
     return gamma1, gamma2
 
@@ -43,6 +73,9 @@ def main():
     arduino_port = "COM3"  # Default COM Port
     baud = 115200  # Baud Rate - do not change, unless Arduino Serial.begin(115200) is changed too
     ser = serial.Serial(arduino_port, baud)
+
+    steps = 200
+    gear_ratio = 4
 
     while True:
         try:
@@ -61,7 +94,18 @@ def main():
         except KeyboardInterrupt:  # End connection with serial port if ctrl+C pressed
             print("Keyboard Interrupt")
 
-        print(true_step_1, true_step_2, limit_1, limit_2)
+        print(true_step_1, true_step_2)
+
+        x, y, z = keyboard_inputs()
+
+        angle1, angle2 = inverse_kinematics(x, y)
+
+        deg_to_steps = (steps * gear_ratio) / 360
+
+        step1 = angle1 * deg_to_steps
+        step2 = angle2 * deg_to_steps
+
+        serial_message(angle1, angle2, z, ser)
 
 
 if __name__ == "__main__":
