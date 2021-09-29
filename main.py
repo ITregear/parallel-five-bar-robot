@@ -3,22 +3,31 @@ import numpy as np
 import keyboard
 
 
-def serial_message(angle_1, angle_2, z_en, serial_port):
+class Motor:
+
+    def __init__(self, home_angle):
+        self.home_angle = home_angle
+        self.limit_state = 0
+        self.current_step = 0
+        self.angle = 0
+
+
+def serial_message(step_1, step_2, z_en, serial_port):
     # Function to send a message to the Arduino, for it to then control the O-Drive
     # Sends four variables, in the following format:
     # <speed, direction, enable, calibration>
     # '<>' markers are crucial
     # Speed is a float, direction must only be 1 or -1, and enable and calibration are boolean
-    string_to_send = "<" + str(float(angle_1)) \
-                     + ", " + str(int(angle_2)) \
+    string_to_send = "<" + str(float(step_1)) \
+                     + ", " + str(int(step_2)) \
                      + ", " + str(int(z_en)) + "> \n"
 
     serial_port.write(string_to_send.encode('UTF-8'))
 
 
 def keyboard_inputs():
-    x_pos = 0
-    y_pos = 300
+    x_pos = 1
+    y_pos = 1
     z_en = 0
 
     if keyboard.is_pressed('a'):
@@ -47,6 +56,12 @@ def keyboard_inputs():
 
 def inverse_kinematics(x_pos, y_pos):
 
+    gear_ratio = 4
+    steps = 200
+    micro_stepping = 8
+
+    deg_to_step = gear_ratio * micro_stepping * steps / 360
+
     l1a = 230
     l1b = 240
     l2a = 230
@@ -65,7 +80,12 @@ def inverse_kinematics(x_pos, y_pos):
     gamma1 = np.degrees(3 * np.pi/2 - (theta1 + alpha1))
     gamma2 = np.degrees(3 * np.pi/2 - (theta2 + alpha2))
 
-    return gamma1, gamma2
+    steps1 = gamma1 * deg_to_step
+    steps2 = gamma2 * deg_to_step
+
+    print(x_pos, y_pos, gamma1, gamma2, steps1, steps2)
+
+    return steps1, steps2
 
 
 def main():
@@ -74,8 +94,8 @@ def main():
     baud = 115200  # Baud Rate - do not change, unless Arduino Serial.begin(115200) is changed too
     ser = serial.Serial(arduino_port, baud)
 
-    steps = 200
-    gear_ratio = 4
+    motor1 = Motor(20)
+    motor2 = Motor(90)
 
     while True:
         try:
@@ -86,26 +106,36 @@ def main():
             data = get_data[0:][:-2]  # Used to ignore new line
             data_array = np.fromstring(data, dtype='float', count=4, sep=', ')
 
-            true_step_1 = data_array[0]
-            true_step_2 = data_array[1]
-            limit_1 = data_array[2]
-            limit_2 = data_array[3]
+            motor1.current_step = data_array[0]
+            motor2.current_step = data_array[1]
+            motor1.limit_state = data_array[2]
+            motor2.limit_state = data_array[3]
 
         except KeyboardInterrupt:  # End connection with serial port if ctrl+C pressed
             print("Keyboard Interrupt")
 
-        print(true_step_1, true_step_2)
+        if keyboard.is_pressed('space'):
+            home_pos_x = 0
+            home_pos_y = 300
 
-        x, y, z = keyboard_inputs()
+            if motor1.limit_state == 0 or motor2.limit_state == 0:
 
-        angle1, angle2 = inverse_kinematics(x, y)
+                if motor1.limit_state == 0:
+                    new_step_1 = motor1.current_step + 10
+                else:
+                    motor1.angle = motor1.home_angle
 
-        deg_to_steps = (steps * gear_ratio) / 360
+                if motor2.limit_state == 0:
+                    new_step_2 = motor2.current_step - 10
+                else:
+                    motor2.angle = motor2.home_angle
 
-        step1 = angle1 * deg_to_steps
-        step2 = angle2 * deg_to_steps
+                serial_message(new_step_1, new_step_2, 0, ser)
 
-        serial_message(angle1, angle2, z, ser)
+            else:
+                set_step_1, set_step_2 = inverse_kinematics(home_pos_x, home_pos_y)
+
+                serial_message(set_step_1, set_step_2, 0, ser)
 
 
 if __name__ == "__main__":
