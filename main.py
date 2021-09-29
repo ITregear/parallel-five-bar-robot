@@ -12,7 +12,7 @@ class Motor:
         self.angle = 0
 
 
-def serial_message(step_1, step_2, z_en, serial_port):
+def serial_message(step_1, step_2, z_en, reset_flag,serial_port):
     # Function to send a message to the Arduino, for it to then control the O-Drive
     # Sends four variables, in the following format:
     # <speed, direction, enable, calibration>
@@ -20,7 +20,8 @@ def serial_message(step_1, step_2, z_en, serial_port):
     # Speed is a float, direction must only be 1 or -1, and enable and calibration are boolean
     string_to_send = "<" + str(float(step_1)) \
                      + ", " + str(int(step_2)) \
-                     + ", " + str(int(z_en)) + "> \n"
+                     + ", " + str(int(z_en)) \
+                     + ", " + str(int(reset_flag)) + "> \n"
 
     serial_port.write(string_to_send.encode('UTF-8'))
 
@@ -83,8 +84,6 @@ def inverse_kinematics(x_pos, y_pos):
     steps1 = gamma1 * deg_to_step
     steps2 = gamma2 * deg_to_step
 
-    print(x_pos, y_pos, gamma1, gamma2, steps1, steps2)
-
     return steps1, steps2
 
 
@@ -95,7 +94,9 @@ def main():
     ser = serial.Serial(arduino_port, baud)
 
     motor1 = Motor(20)
-    motor2 = Motor(90)
+    motor2 = Motor(-90)
+
+    homing_flag = False
 
     while True:
         try:
@@ -114,28 +115,34 @@ def main():
         except KeyboardInterrupt:  # End connection with serial port if ctrl+C pressed
             print("Keyboard Interrupt")
 
-        if keyboard.is_pressed('space'):
+        if keyboard.is_pressed('space') or homing_flag:
+            homing_flag = True
+            at_home = False
             home_pos_x = 0
             home_pos_y = 300
 
-            if motor1.limit_state == 0 or motor2.limit_state == 0:
+            if (motor1.limit_state == 0 or motor2.limit_state == 0) and not at_home:
 
                 if motor1.limit_state == 0:
                     new_step_1 = motor1.current_step + 10
-                else:
-                    motor1.angle = motor1.home_angle
 
                 if motor2.limit_state == 0:
                     new_step_2 = motor2.current_step - 10
-                else:
-                    motor2.angle = motor2.home_angle
 
-                serial_message(new_step_1, new_step_2, 0, ser)
+                serial_message(new_step_1, new_step_2, 0, 0, ser)
 
             else:
-                set_step_1, set_step_2 = inverse_kinematics(home_pos_x, home_pos_y)
+                at_home = True
+                motor1.angle = motor1.home_angle
+                motor2.angle = motor2.home_angle
 
-                serial_message(set_step_1, set_step_2, 0, ser)
+                step1, step2 = inverse_kinematics(home_pos_x, home_pos_y)
+
+                
+
+                homing_flag = False
+
+        print(motor1.current_step, motor1.angle, motor2.current_step, motor2.angle)
 
 
 if __name__ == "__main__":
