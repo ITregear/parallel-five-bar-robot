@@ -20,21 +20,22 @@ def inverse_kinematics(x_pos, y_pos):
     theta1 = np.arccos((l1a**2 + z1**2 - l1b**2) / (2 * l1a * z1))
     theta2 = np.arccos((l2a**2 + z2**2 - l2b**2) / (2 * l2a * z2))
 
-    gamma1 = np.degrees(3 * np.pi/2 - (theta1 + alpha1))
-    gamma2 = np.degrees(3 * np.pi/2 - (theta2 + alpha2))
+    gamma1 = np.degrees(alpha1 + theta1)
+    gamma2 = np.degrees(np.pi - alpha2 - theta2)
+
+    print(np.degrees(alpha1), np.degrees(theta1), gamma1)
+    print(np.degrees(alpha2), np.degrees(theta2), gamma2)
 
     return gamma1, gamma2
 
 
-x = -30
+x = 0
 y = 300
 
-gamma2, gamma1 = inverse_kinematics(x, y)
+gamma1, gamma2 = inverse_kinematics(x, y)
 
-print(gamma1, gamma2)
-
-xn = [-85, -85 - 230*np.cos(np.pi - np.radians(gamma1)), x, 85 - 230*np.cos(np.radians(gamma2)), 85]
-yn = [0, 230*np.sin(np.pi - np.radians(gamma1)), y, 230*np.sin(np.radians(gamma2)), 0]
+xn = [-85, -85 - 230*np.cos(np.radians(180 - gamma1)), x, 85 + 230*np.cos(np.radians(gamma2)), 85]
+yn = [0, 230*np.sin(np.radians(180 - gamma1)), y, 230*np.sin(np.radians(gamma2)), 0]
 
 l1a = np.sqrt((xn[1]-xn[0])**2 + (yn[1] - yn[0])**2)
 l1b = np.sqrt((xn[2]-xn[1])**2 + (yn[2] - yn[1])**2)

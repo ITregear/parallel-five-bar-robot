@@ -1,6 +1,7 @@
 import serial
 import numpy as np
 import keyboard
+import time
 
 
 class Motor:
@@ -27,19 +28,19 @@ def serial_message(step_1, step_2, z_en, reset_flag,serial_port):
 
 
 def keyboard_inputs():
-    x_pos = 1
-    y_pos = 1
+    x_pos = 0
+    y_pos = 300
     z_en = 0
 
-    if keyboard.is_pressed('a'):
+    if keyboard.is_pressed('d'):
         x_pos = 100
         y_pos = 300
 
     if keyboard.is_pressed('s'):
         x_pos = 0
-        y_pos = 250
+        y_pos = 200
 
-    if keyboard.is_pressed('d'):
+    if keyboard.is_pressed('a'):
         x_pos = -100
         y_pos = 300
 
@@ -49,6 +50,7 @@ def keyboard_inputs():
 
     if keyboard.is_pressed('h'):
         z_en = 1
+
     if keyboard.is_pressed('b'):
         z_en = 0
 
@@ -75,16 +77,46 @@ def inverse_kinematics(x_pos, y_pos):
     z1 = y_pos / np.sin(alpha1)
     z2 = y_pos / np.sin(alpha2)
 
-    theta1 = np.arccos((l1a**2 + z1**2 - l1b**2) / (2 * l1a * z1))
-    theta2 = np.arccos((l2a**2 + z2**2 - l2b**2) / (2 * l2a * z2))
+    theta1 = np.arccos((l1a ** 2 + z1 ** 2 - l1b ** 2) / (2 * l1a * z1))
+    theta2 = np.arccos((l2a ** 2 + z2 ** 2 - l2b ** 2) / (2 * l2a * z2))
 
-    gamma1 = np.degrees(3 * np.pi/2 - (theta1 + alpha1))
-    gamma2 = np.degrees(3 * np.pi/2 - (theta2 + alpha2))
+    gamma1 = np.degrees(alpha1 + theta1)
+    gamma2 = np.degrees(np.pi - alpha2 - theta2)
 
     steps1 = gamma1 * deg_to_step
     steps2 = gamma2 * deg_to_step
 
     return steps1, steps2
+
+
+def homing_sequence(motor1, motor2, ser):
+    home_pos_x = 0
+    home_pos_y = 300
+
+    if motor1.limit_state == 0 or motor2.limit_state == 0:
+
+        if motor1.limit_state == 0:
+            new_step_1 = motor1.current_step - 10
+        else:
+            new_step_1 = motor1.current_step
+
+        if motor2.limit_state == 0:
+            new_step_2 = motor2.current_step - 10
+        else:
+            new_step_2 = motor2.current_step
+
+        serial_message(new_step_1, new_step_2, 0, 0, ser)
+
+        return True
+
+    else:
+        serial_message(355, -1600, 0, 1, ser)
+
+        step1, step2 = inverse_kinematics(home_pos_x, home_pos_y)  # End target
+
+        serial_message(step1, step2, 0, 0, ser)
+
+        return False
 
 
 def main():
@@ -96,7 +128,7 @@ def main():
     motor1 = Motor(20)
     motor2 = Motor(-90)
 
-    homing_flag = False
+    homing_flag = True
 
     while True:
         try:
@@ -116,33 +148,13 @@ def main():
             print("Keyboard Interrupt")
 
         if keyboard.is_pressed('space') or homing_flag:
-            homing_flag = True
-            at_home = False
-            home_pos_x = 0
-            home_pos_y = 300
+            homing_flag = homing_sequence(motor1, motor2, ser)
+        else:
+            x, y, z = keyboard_inputs()
+            step1, step2 = inverse_kinematics(x, y)
+            serial_message(step1, step2, z, 0, ser)
 
-            if (motor1.limit_state == 0 or motor2.limit_state == 0) and not at_home:
-
-                if motor1.limit_state == 0:
-                    new_step_1 = motor1.current_step + 10
-
-                if motor2.limit_state == 0:
-                    new_step_2 = motor2.current_step - 10
-
-                serial_message(new_step_1, new_step_2, 0, 0, ser)
-
-            else:
-                at_home = True
-                motor1.angle = motor1.home_angle
-                motor2.angle = motor2.home_angle
-
-                step1, step2 = inverse_kinematics(home_pos_x, home_pos_y)
-
-                
-
-                homing_flag = False
-
-        print(motor1.current_step, motor1.angle, motor2.current_step, motor2.angle)
+        print(motor1.current_step, motor2.current_step)
 
 
 if __name__ == "__main__":
