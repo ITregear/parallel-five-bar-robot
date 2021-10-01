@@ -51,9 +51,6 @@ def keyboard_inputs():
     if keyboard.is_pressed('h'):
         z_en = 1
 
-    if keyboard.is_pressed('b'):
-        z_en = 0
-
     return x_pos, y_pos, z_en
 
 
@@ -83,8 +80,8 @@ def inverse_kinematics(x_pos, y_pos):
     gamma1 = np.degrees(alpha1 + theta1)
     gamma2 = np.degrees(np.pi - alpha2 - theta2)
 
-    steps1 = gamma1 * deg_to_step
-    steps2 = gamma2 * deg_to_step
+    steps1 = int(gamma1 * deg_to_step)
+    steps2 = int(gamma2 * deg_to_step)
 
     return steps1, steps2
 
@@ -105,7 +102,7 @@ def homing_sequence(motor1, motor2, ser):
         else:
             new_step_2 = motor2.current_step
 
-        serial_message(new_step_1, new_step_2, 0, 0, ser)
+        serial_message(new_step_1, new_step_2, 1, 0, ser)
 
         return True
 
@@ -114,9 +111,39 @@ def homing_sequence(motor1, motor2, ser):
 
         step1, step2 = inverse_kinematics(home_pos_x, home_pos_y)  # End target
 
-        serial_message(step1, step2, 0, 0, ser)
+        serial_message(step1, step2, 1 , 0, ser)
 
         return False
+
+
+def draw_from_txt(filename):
+
+    x_file, y_file, z_file = [], [], []
+
+    file = open(filename, 'r')
+
+    for line in file:
+
+        x_file += [float(line.split(',')[0])]
+        y_file += [float(line.split(',')[1])]
+        z_file += [float(line.split(',')[2])]
+
+    print(x_file, y_file, z_file)
+
+    return x_file, y_file, z_file
+
+
+def issue_position_command(x, y, z, motor1, motor2, count, ser):
+    step1, step2 = inverse_kinematics(x[count], y[count])
+
+    print(count, step1, step2, motor1.current_step, motor2.current_step)
+
+    if motor1.current_step == step1 or motor2.current_step == step2:
+        count += 1
+
+    serial_message(step1, step2, z[count], 0, ser)
+
+    return count
 
 
 def main():
@@ -129,6 +156,9 @@ def main():
     motor2 = Motor(-90)
 
     homing_flag = True
+
+    x, y, z = draw_from_txt("test_coords.txt")  # Arrays
+    command_count = 0
 
     while True:
         try:
@@ -150,11 +180,9 @@ def main():
         if keyboard.is_pressed('space') or homing_flag:
             homing_flag = homing_sequence(motor1, motor2, ser)
         else:
-            x, y, z = keyboard_inputs()
-            step1, step2 = inverse_kinematics(x, y)
-            serial_message(step1, step2, z, 0, ser)
+            command_count = issue_position_command(x, y, z, motor1, motor2, command_count, ser)  # XYZ are arrays
 
-        print(motor1.current_step, motor2.current_step)
+        # print(motor1.current_step, motor2.current_step)
 
 
 if __name__ == "__main__":
