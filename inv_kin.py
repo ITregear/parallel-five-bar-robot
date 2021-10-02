@@ -1,48 +1,78 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import keyboard
+from main import inverse_kinematics
+from main import draw_from_txt
+import time
 
 
-def inverse_kinematics(x_pos, y_pos):
+def inv_kin():
+
+    matplotlib.use("TkAgg")
+    fig, ax = plt.subplots()
+    ax.set_xlim(-300, 300)
+    ax.set_ylim(0, 450)
+
+    line1, = ax.plot([], [], c='r')
+    line2, = ax.plot([], [], c='b')
+
+    gear_ratio = 4
+    steps = 200
+    micro_stepping = 8
 
     l1a = 230
     l1b = 240
     l2a = 230
     l2b = 240
-    x1 = 170/2
+    x1 = 170 / 2
 
-    alpha1 = np.arctan2(y_pos, (x1 + x_pos))
-    alpha2 = np.arctan2(y_pos, (x1 - x_pos))
+    delay = 0.1
+    last_time = 0
 
-    z1 = y_pos / np.sin(alpha1)
-    z2 = y_pos / np.sin(alpha2)
+    deg_to_step = gear_ratio * micro_stepping * steps / 360
 
-    theta1 = np.arccos((l1a**2 + z1**2 - l1b**2) / (2 * l1a * z1))
-    theta2 = np.arccos((l2a**2 + z2**2 - l2b**2) / (2 * l2a * z2))
+    x_array, y_array, z_array = draw_from_txt("test_coords.txt")
 
-    gamma1 = np.degrees(alpha1 + theta1)
-    gamma2 = np.degrees(np.pi - alpha2 - theta2)
+    count = 0
+    x_end = []
+    y_end = []
 
-    print(np.degrees(alpha1), np.degrees(theta1), gamma1)
-    print(np.degrees(alpha2), np.degrees(theta2), gamma2)
+    plt.ion()
 
-    return gamma1, gamma2
+    while True:
+        try:
+
+            if (time.perf_counter() - last_time) >= delay:
+                last_time = time.perf_counter()
+                if count == (len(x_array)-1):
+                    count = 1
+                else:
+                    count += 1
+
+                print(count)
+
+                step1, step2 = inverse_kinematics(x_array[count], y_array[count])
+
+                gamma1 = step1 / deg_to_step
+                gamma2 = step2 / deg_to_step
+
+                xn = [-x1, -x1 - l1a * np.cos(np.radians(180 - gamma1)), x_array[count], x1 + l2a * np.cos(np.radians(gamma2)), 85]
+                yn = [0, l1a * np.sin(np.radians(180 - gamma1)), y_array[count], l2a * np.sin(np.radians(gamma2)), 0]
+
+                x_end += [x_array[count]]
+                y_end += [y_array[count]]
+
+                line1.set_data(xn, yn)
+                line2.set_data(x_end, y_end)
+
+                plt.pause(0.05)
+
+        except KeyboardInterrupt:
+            print("Keyboard Interrupt")
+
+    plt.show()
 
 
-x = 0
-y = 300
-
-gamma1, gamma2 = inverse_kinematics(x, y)
-
-xn = [-85, -85 - 230*np.cos(np.radians(180 - gamma1)), x, 85 + 230*np.cos(np.radians(gamma2)), 85]
-yn = [0, 230*np.sin(np.radians(180 - gamma1)), y, 230*np.sin(np.radians(gamma2)), 0]
-
-l1a = np.sqrt((xn[1]-xn[0])**2 + (yn[1] - yn[0])**2)
-l1b = np.sqrt((xn[2]-xn[1])**2 + (yn[2] - yn[1])**2)
-l2a = np.sqrt((xn[3]-xn[2])**2 + (yn[3] - yn[2])**2)
-l2b = np.sqrt((xn[4]-xn[3])**2 + (yn[4] - yn[3])**2)
-
-print(l1a, l1b, l2a, l2b)
-
-plt.plot(xn, yn)
-plt.show()
+if __name__ == "__main__":
+    inv_kin()

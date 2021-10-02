@@ -56,6 +56,8 @@ def keyboard_inputs():
 
 def inverse_kinematics(x_pos, y_pos):
 
+    # Need to add code that translates x_pos, y_pos of pen to x_end, y_end of robot
+
     gear_ratio = 4
     steps = 200
     micro_stepping = 8
@@ -128,8 +130,6 @@ def draw_from_txt(filename):
         y_file += [float(line.split(',')[1])]
         z_file += [float(line.split(',')[2])]
 
-    print(x_file, y_file, z_file)
-
     return x_file, y_file, z_file
 
 
@@ -139,7 +139,10 @@ def issue_position_command(x, y, z, motor1, motor2, count, ser):
     print(count, step1, step2, motor1.current_step, motor2.current_step)
 
     if motor1.current_step == step1 or motor2.current_step == step2:
-        count += 1
+        if count == (len(x_array) - 1):
+            count = 1
+        else:
+            count += 1
 
     serial_message(step1, step2, z[count], 0, ser)
 
@@ -151,6 +154,7 @@ def main():
     arduino_port = "COM3"  # Default COM Port
     baud = 115200  # Baud Rate - do not change, unless Arduino Serial.begin(115200) is changed too
     ser = serial.Serial(arduino_port, baud)
+    print("Connected to", arduino_port)
 
     motor1 = Motor(20)
     motor2 = Motor(-90)
@@ -180,9 +184,12 @@ def main():
         if keyboard.is_pressed('space') or homing_flag:
             homing_flag = homing_sequence(motor1, motor2, ser)
         else:
-            command_count = issue_position_command(x, y, z, motor1, motor2, command_count, ser)  # XYZ are arrays
+            # command_count = issue_position_command(x, y, z, motor1, motor2, command_count, ser)  # XYZ are arrays
+            x, y, z = keyboard_inputs()
+            step1, step2 = inverse_kinematics(x, y)
+            serial_message(step1, step2, z, 0, ser)
 
-        # print(motor1.current_step, motor2.current_step)
+        print(motor1.current_step, motor2.current_step)
 
 
 if __name__ == "__main__":
