@@ -60,19 +60,19 @@ This repository contains the code for controlling a robotic arm using inverse ki
 Here are some images that showcase the project:
 
 ### Electronics and Motors
-![Image 1](im1.jpg)
+![Image 1](im1.JPG)
 
 ### Overall robot
-![Image 2](im2.jpg)
+![Image 2](im2.JPG)
 
 ### Pen plotter end effector
-![Image 3](im3.jpg)
+![Image 3](im3.JPG)
 
 ### Stepper motor drivers
-![Image 4](im4.jpg)
+![Image 4](im4.JPG)
 
 ### Folded robot
-![Image 5](im5.jpg)
+![Image 5](im5.JPG)
 
 
 ## Contributing
