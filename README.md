@@ -55,6 +55,26 @@ This repository contains the code for controlling a robotic arm using inverse ki
 - **Automated Movements:** Can follow predefined paths from a text file.
 - **Visualization:** Provides a graphical representation of the arm's movement.
 
+## Project Images
+
+Here are some images that showcase the project:
+
+### Electronics and Motors
+![Image 1](im1.jpg)
+
+### Overall robot
+![Image 2](im2.jpg)
+
+### Pen plotter end effector
+![Image 3](im3.jpg)
+
+### Stepper motor drivers
+![Image 4](im4.jpg)
+
+### Folded robot
+![Image 5](im5.jpg)
+
+
 ## Contributing
 
 Contributions to this project are welcome. Please fork the repository and submit a pull request for any enhancements, bug fixes, or improvements.
